@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model cards {
+  id                Int                 @id @default(autoincrement())
+  name              String              @db.VarChar(255)
+  rarity            card_rarity
+  power             Int
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  opened_pack_cards opened_pack_cards[]
+}
+
+model opened_pack_cards {
+  id                Int             @id @default(autoincrement())
+  purchased_pack_id Int
+  card_id           Int
+  created_at        DateTime        @default(now()) @db.Timestamp(6)
+  cards             cards           @relation(fields: [card_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchased_packs   purchased_packs @relation(fields: [purchased_pack_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pack {
+  id              Int               @id @default(autoincrement())
+  name            String            @db.VarChar(50)
+  price           Decimal           @db.Decimal(10, 2)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  updated_at      DateTime          @default(now()) @db.Timestamp(6)
+  purchased_packs purchased_packs[]
+  transactions    transactions[]
+}
+
+model purchased_packs {
+  id                Int                 @id @default(autoincrement())
+  user_id           Int
+  pack_id           Int
+  is_opened         Boolean             @default(false)
+  transaction_id    Int
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  opened_at         DateTime?           @db.Timestamp(6)
+  opened_pack_cards opened_pack_cards[]
+  pack              pack                @relation(fields: [pack_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions      transactions        @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model purchased_tickets {
+  id             Int          @id @default(autoincrement())
+  user_id        Int
+  ticket_id      Int
+  transaction_id Int
+  is_used        Boolean      @default(false)
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  used_at        DateTime?    @db.Timestamp(6)
+  ticket         ticket       @relation(fields: [ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ticket {
+  id                Int                 @id @default(autoincrement())
+  name              String              @db.VarChar(50)
+  price             Decimal             @db.Decimal(10, 2)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  purchased_tickets purchased_tickets[]
+  transactions      transactions[]
+}
+
+model transactions {
+  id                Int                 @id @default(autoincrement())
+  payment_method    payment_method
+  amount            Decimal             @db.Decimal(10, 2)
+  user_id           Int
+  pack_id           Int
+  ticket_id         Int
+  payment_id        String?             @db.VarChar(255)
+  status            payment_status      @default(pending)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  purchased_packs   purchased_packs[]
+  purchased_tickets purchased_tickets[]
+  pack              pack                @relation(fields: [pack_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket            ticket              @relation(fields: [ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model battles {
+  id        Int      @id @default(autoincrement())
+  user1_id  Int
+  user2_id  Int
+  winner_id Int
+  createdAt DateTime @default(now())
+
+  rosters rosters[]
+
+  user1  users @relation("User1Battles", fields: [user1_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user2  users @relation("User2Battles", fields: [user2_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  winner users @relation("WinnerBattles", fields: [winner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("battles")
+}
+
+model rosters {
+  id         Int      @id @default(autoincrement())
+  battle_id  Int?
+  userId     Int
+  cards      Json
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  battle battles? @relation(fields: [battle_id], references: [id])
+  user   users    @relation(fields: [userId], references: [id])
+}
+
+model users {
+  id                Int                 @id @default(autoincrement())
+  email             String              @db.VarChar(255)
+  password          String              @db.VarChar(255)
+  created_at        DateTime            @default(now()) @db.Timestamp(6)
+  updated_at        DateTime            @default(now()) @db.Timestamp(6)
+  purchased_packs   purchased_packs[]
+  purchased_tickets purchased_tickets[]
+  transactions      transactions[]
+  battles1          battles[]           @relation("User1Battles")
+  battles2          battles[]           @relation("User2Battles")
+  battlesWon        battles[]           @relation("WinnerBattles")
+  rosters           rosters[]
+}
+
+enum card_rarity {
+  common
+  rare
+  epic
+  mythic
+}
+
+enum payment_method {
+  usd
+  bitcoin
+  etherium
+}
+
+enum payment_status {
+  pending
+  processing
+  refunded
+  success
+  failure
+  canceled
+}
